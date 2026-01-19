@@ -70,22 +70,28 @@
       background: #1f2937; border: 1px solid #334155; font-size: 12px;
       margin-left: 6px; color:#cbd5e1;
     }
+    .hr {
+      margin: 10px 0;
+      border-top: 1px solid #243042;
+    }
+    .ok { color: #22c55e; }
+    .bad { color: #ef4444; }
   </style>
 </head>
 
 <body>
   <div class="container">
     <div class="card">
-      <h1>Calculadora de Caución <span class="pill">AL30</span></h1>
+      <h1>Calculadora de Caución <span class="pill">AL30 / GD30</span></h1>
 
       <label>Precio Compra (A)</label>
-      <input type="number" id="A" placeholder="Ej: 87810">
+      <input type="number" id="A" placeholder="Ej: 87010">
 
       <label>Precio Venta (B)</label>
-      <input type="number" id="B" placeholder="Ej: 87910">
+      <input type="number" id="B" placeholder="Ej: 87050">
 
-      <label>Número (VN / Cantidad)</label>
-      <input type="number" id="NUMERO" value="0">
+      <label>Nominales (VN)</label>
+      <input type="number" id="VN" value="0" placeholder="Ej: 20000">
 
       <div class="row">
         <div>
@@ -101,37 +107,72 @@
       <button onclick="calcular()">Calcular</button>
 
       <div class="result" id="out">
-        Ingresá valores para calcular la caución.
+        Ingresá valores para calcular.
       </div>
 
       <div class="muted">
-        Fórmula diaria: |Compra − Venta| / Compra · 100
+        Derecho de mercado aplicado: 0,01% (0,0001) sobre el bruto (compra suma, venta resta).
       </div>
     </div>
   </div>
 
   <script>
+    function fmtMoneyARS(n) {
+      return n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
     function calcular() {
       const A = parseFloat(document.getElementById("A").value);
       const B = parseFloat(document.getElementById("B").value);
-      const VN = parseFloat(document.getElementById("NUMERO").value || "0");
+      const VN = parseFloat(document.getElementById("VN").value || "0");
       const dias = parseFloat(document.getElementById("dias").value || "365");
 
-      if (!isFinite(A) || !isFinite(B) || A <= 0) {
-        document.getElementById("out").innerHTML = "Ingresá valores válidos.";
+      if (!isFinite(A) || !isFinite(B) || A <= 0 || VN <= 0) {
+        document.getElementById("out").innerHTML = "Ingresá valores válidos. (A > 0 y VN > 0)";
         return;
       }
 
-      const diferencia = Math.abs(A - B);
+      // Spread y caución (manteniendo el concepto de diferencia)
+      const diferencia = Math.abs(B - A);
       const caucionDiaria = (diferencia / A) * 100;
       const caucionAnual = caucionDiaria * dias;
-      const resultadoPesos = diferencia * (VN / 100);
+
+      // Derecho de mercado 0,01% = 0,0001
+      const derecho = 0.0001;
+
+      // Brutos (precio cotiza por 100)
+      const brutoCompra = VN * (A / 100);
+      const derCompra = brutoCompra * derecho;
+      const netoCompra = brutoCompra + derCompra;
+
+      const brutoVenta = VN * (B / 100);
+      const derVenta = brutoVenta * derecho;
+      const netoVenta = brutoVenta - derVenta;
+
+      // Resultado neto
+      const gananciaNeta = netoVenta - netoCompra;
+      const gananciaPorNominal = gananciaNeta / VN;
+
+      const cls = gananciaNeta >= 0 ? "ok" : "bad";
+      const signo = gananciaNeta >= 0 ? "" : "-";
 
       document.getElementById("out").innerHTML =
-        `<b>Diferencia (Compra - Venta):</b> ${diferencia.toFixed(2)}<br>` +
+        `<b>Diferencia (Compra vs Venta):</b> ${diferencia.toFixed(2)}<br>` +
         `<b>Caución diaria:</b> ${caucionDiaria.toFixed(4)} %<br>` +
-        `<b>Caución anual (simple, ${dias} días):</b> ${caucionAnual.toFixed(2)} %<br>` +
-        `<b>Resultado ($):</b> $ ${resultadoPesos.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
+        `<b>Caución anual (simple, ${dias} días):</b> ${caucionAnual.toFixed(2)} %` +
+        `<div class="hr"></div>` +
+        `<b>🟢 Compra</b><br>` +
+        `Importe bruto: $ ${fmtMoneyARS(brutoCompra)}<br>` +
+        `Derecho (0,01%): $ ${fmtMoneyARS(derCompra)}<br>` +
+        `<b>Costo neto compra:</b> $ ${fmtMoneyARS(netoCompra)}<br>` +
+        `<div class="hr"></div>` +
+        `<b>🔵 Venta</b><br>` +
+        `Importe bruto: $ ${fmtMoneyARS(brutoVenta)}<br>` +
+        `Derecho (0,01%): $ ${fmtMoneyARS(derVenta)}<br>` +
+        `<b>Ingreso neto venta:</b> $ ${fmtMoneyARS(netoVenta)}<br>` +
+        `<div class="hr"></div>` +
+        `<b class="${cls}">💰 Ganancia neta:</b> <b class="${cls}">$ ${fmtMoneyARS(gananciaNeta)}</b><br>` +
+        `<b>Ganancia por nominal:</b> ${gananciaPorNominal.toLocaleString("es-AR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
     }
 
     if ("serviceWorker" in navigator) {
