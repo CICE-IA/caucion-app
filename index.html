@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calculadora de Caución</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#111827">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #0b1220;
+      color: #e5e7eb;
+    }
+    .container {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+    .card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+    }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    label { display: block; margin-top: 12px; font-size: 14px; color: #cbd5e1; }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      background: #0b1220;
+      color: #e5e7eb;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    button {
+      width: 100%;
+      margin-top: 14px;
+      padding: 12px;
+      border: 0;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:active { transform: scale(0.99); }
+    .result {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #0b1220;
+      border: 1px dashed #334155;
+      line-height: 1.6;
+    }
+    .muted { color: #94a3b8; font-size: 13px; margin-top: 10px;}
+    .pill {
+      display:inline-block; padding: 2px 10px; border-radius: 999px;
+      background: #1f2937; border: 1px solid #334155; font-size: 12px;
+      margin-left: 6px; color:#cbd5e1;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Calculadora de Caución <span class="pill">AL30 / GD30</span></h1>
+
+      <label>Precio 24 hs (A)</label>
+      <input type="number" id="A" inputmode="decimal" placeholder="Ej: 87060">
+
+      <label>Precio CI (B)</label>
+      <input type="number" id="B" inputmode="decimal" placeholder="Ej: 86960">
+
+      <div class="row">
+        <div>
+          <label>Días hábiles/año</label>
+          <input type="number" id="dias" value="252">
+        </div>
+        <div>
+          <label>Tipo de anualización</label>
+          <input type="text" id="tipo" value="simple" readonly>
+        </div>
+      </div>
+
+      <button onclick="calcular()">Calcular</button>
+
+      <div class="result" id="out">
+        Ingresá A y B para ver la caución.
+      </div>
+
+      <div class="muted">
+        Fórmula diaria: (A - B) / A. Anual simple: diaria × días hábiles.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function calcular() {
+      const A = parseFloat(document.getElementById("A").value);
+      const B = parseFloat(document.getElementById("B").value);
+      const dias = parseFloat(document.getElementById("dias").value || "252");
+
+      if (!isFinite(A) || !isFinite(B) || A <= 0) {
+        document.getElementById("out").innerHTML = "Ingresá valores válidos. (A debe ser > 0)";
+        return;
+      }
+
+      const diferencia = A - B;
+      const tasaDiaria = diferencia / A;             // en decimal
+      const tasaDiariaPct = tasaDiaria * 100;        // %
+      const tasaAnualSimple = tasaDiaria * dias;     // decimal
+      const tasaAnualPct = tasaAnualSimple * 100;    // %
+
+      document.getElementById("out").innerHTML =
+        `<b>Diferencia (A - B):</b> ${diferencia.toFixed(2)}<br>` +
+        `<b>Caución diaria:</b> ${tasaDiariaPct.toFixed(4)} %<br>` +
+        `<b>Caución anual (simple, ${dias} días):</b> ${tasaAnualPct.toFixed(2)} %`;
+    }
+
+    // Service Worker (PWA offline)
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js");
+    }
+  </script>
+</body>
+</html>
