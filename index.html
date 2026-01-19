@@ -56,7 +56,6 @@
       font-size: 16px;
       cursor: pointer;
     }
-    button:active { transform: scale(0.99); }
     .result {
       margin-top: 14px;
       padding: 12px;
@@ -79,34 +78,34 @@
     <div class="card">
       <h1>Calculadora de Caución <span class="pill">AL30 / GD30</span></h1>
 
-      <label>Precio 24 hs (A)</label>
-      <input type="number" id="A" inputmode="decimal" placeholder="Ej: 87060">
+      <label>Precio Compra (A)</label>
+      <input type="number" id="A" placeholder="Ej: 87810">
 
-      <label>Precio CI (B)</label>
-      <input type="number" id="B" inputmode="decimal" placeholder="Ej: 86960">
+      <label>Precio Venta (B)</label>
+      <input type="number" id="B" placeholder="Ej: 87910">
 
       <label>Número (VN / Cantidad)</label>
-      <input type="number" id="NUMERO" inputmode="decimal" placeholder="Ej: 20000" value="0">
+      <input type="number" id="NUMERO" value="0">
 
       <div class="row">
         <div>
           <label>Días hábiles/año</label>
-          <input type="number" id="dias" value="252">
+          <input type="number" id="dias" value="365">
         </div>
         <div>
           <label>Tipo de anualización</label>
-          <input type="text" id="tipo" value="simple" readonly>
+          <input type="text" value="simple" readonly>
         </div>
       </div>
 
       <button onclick="calcular()">Calcular</button>
 
       <div class="result" id="out">
-        Ingresá A y B para ver la caución.
+        Ingresá valores para calcular la caución.
       </div>
 
       <div class="muted">
-        Fórmula diaria: (A - B) / A. Anual simple: diaria × días hábiles.
+        Fórmula diaria: |Compra − Venta| / Compra · 100
       </div>
     </div>
   </div>
@@ -115,37 +114,26 @@
     function calcular() {
       const A = parseFloat(document.getElementById("A").value);
       const B = parseFloat(document.getElementById("B").value);
-      const dias = parseFloat(document.getElementById("dias").value || "252");
-      const NUMERO = parseFloat(document.getElementById("NUMERO").value || "0");
+      const VN = parseFloat(document.getElementById("NUMERO").value || "0");
+      const dias = parseFloat(document.getElementById("dias").value || "365");
 
       if (!isFinite(A) || !isFinite(B) || A <= 0) {
-        document.getElementById("out").innerHTML = "Ingresá valores válidos. (A debe ser > 0)";
+        document.getElementById("out").innerHTML = "Ingresá valores válidos.";
         return;
       }
 
-      const diferencia = A - B;
-      const tasaDiaria = diferencia / A;             // en decimal
-      const tasaDiariaPct = tasaDiaria * 100;        // %
-      const tasaAnualSimple = tasaDiaria * dias;     // decimal
-      const tasaAnualPct = tasaAnualSimple * 100;    // %
-
-      // RESULTADO EN PESOS (interpretando NUMERO como VN)
-      // Los precios suelen cotizarse por cada 100 de VN, por eso: (A - B) * (VN/100)
-      const resultadoPesos = diferencia * (NUMERO / 100);
-
-      const resultadoPesosFmt = resultadoPesos.toLocaleString("es-AR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
+      const diferencia = Math.abs(A - B);
+      const caucionDiaria = (diferencia / A) * 100;
+      const caucionAnual = caucionDiaria * dias;
+      const resultadoPesos = diferencia * (VN / 100);
 
       document.getElementById("out").innerHTML =
-        `<b>Diferencia (A - B):</b> ${diferencia.toFixed(2)}<br>` +
-        `<b>Caución diaria:</b> ${tasaDiariaPct.toFixed(4)} %<br>` +
-        `<b>Caución anual (simple, ${dias} días):</b> ${tasaAnualPct.toFixed(2)} %<br>` +
-        `<b>Resultado ($):</b> $ ${resultadoPesosFmt}`;
+        `<b>Diferencia (Compra - Venta):</b> ${diferencia.toFixed(2)}<br>` +
+        `<b>Caución diaria:</b> ${caucionDiaria.toFixed(4)} %<br>` +
+        `<b>Caución anual (simple, ${dias} días):</b> ${caucionAnual.toFixed(2)} %<br>` +
+        `<b>Resultado ($):</b> $ ${resultadoPesos.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
     }
 
-    // Service Worker (PWA offline)
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js");
     }
