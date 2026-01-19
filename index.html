@@ -85,6 +85,10 @@
       <label>Precio CI (B)</label>
       <input type="number" id="B" inputmode="decimal" placeholder="Ej: 86960">
 
+      <!-- NUEVO: input NUMERO (no afecta nada de lo anterior) -->
+      <label>Número (NUMERO)</label>
+      <input type="number" id="NUMERO" inputmode="decimal" placeholder="Ej: 10" value="0">
+
       <div class="row">
         <div>
           <label>Días hábiles/año</label>
@@ -114,6 +118,9 @@
       const B = parseFloat(document.getElementById("B").value);
       const dias = parseFloat(document.getElementById("dias").value || "252");
 
+      // NUEVO: NUMERO (por defecto 0 si está vacío)
+      const NUMERO = parseFloat(document.getElementById("NUMERO").value || "0");
+
       if (!isFinite(A) || !isFinite(B) || A <= 0) {
         document.getElementById("out").innerHTML = "Ingresá valores válidos. (A debe ser > 0)";
         return;
@@ -125,10 +132,15 @@
       const tasaAnualSimple = tasaDiaria * dias;     // decimal
       const tasaAnualPct = tasaAnualSimple * 100;    // %
 
+      // NUEVO: cálculo en pesos según tu fórmula:
+      // (A - B - (B/100)*NUMERO) - ((A/100)*NUMERO)
+      const resultadoPesos = (A - B - (B/100)*NUMERO) - ((A/100)*NUMERO);
+
       document.getElementById("out").innerHTML =
         `<b>Diferencia (A - B):</b> ${diferencia.toFixed(2)}<br>` +
         `<b>Caución diaria:</b> ${tasaDiariaPct.toFixed(4)} %<br>` +
-        `<b>Caución anual (simple, ${dias} días):</b> ${tasaAnualPct.toFixed(2)} %`;
+        `<b>Caución anual (simple, ${dias} días):</b> ${tasaAnualPct.toFixed(2)} %<br>` +
+        `<b>Resultado ($):</b> $ ${resultadoPesos.toFixed(2)}`;
     }
 
     // Service Worker (PWA offline)
