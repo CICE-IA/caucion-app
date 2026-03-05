@@ -399,6 +399,13 @@
       renderOperaciones();
     }
 
+    function borrarOperacion(id) {
+      const ops = getOperaciones();
+      const nuevasOps = ops.filter((op) => op.id !== id);
+      saveOperaciones(nuevasOps);
+      renderOperaciones();
+    }
+
     function renderOperaciones() {
       const ops = getOperaciones();
       const tbody = document.getElementById("tablaOps");
