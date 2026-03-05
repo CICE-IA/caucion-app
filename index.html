@@ -115,20 +115,34 @@
     }
     td.action-cell {
       text-align: center;
-      width: 46px;
+      width: 96px;
     }
-    .btn-delete {
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+    }
+    .btn-icon {
       background: transparent;
-      color: #ef4444;
       border: 0;
       padding: 0;
       margin: 0;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 700;
       line-height: 1;
       cursor: pointer;
       width: auto;
-      min-width: 28px;
+      min-width: 24px;
+    }
+    .btn-edit {
+      color: #38bdf8;
+    }
+    .btn-edit:hover {
+      color: #7dd3fc;
+    }
+    .btn-delete {
+      color: #ef4444;
     }
     .btn-delete:hover {
       color: #f87171;
@@ -202,7 +216,8 @@
       <label>Precio</label>
       <input type="number" id="opPrecio" placeholder="Ej: 88000">
 
-      <button onclick="agregarOperacion()">Agregar operación</button>
+      <button id="btnGuardarOp" onclick="agregarOperacion()">Agregar operación</button>
+      <button id="btnCancelarEdicion" class="btn-secondary" style="display:none" onclick="cancelarEdicion()">Cancelar edición</button>
       <button class="btn-secondary" onclick="borrarOperaciones()">Borrar todo</button>
 
       <div class="result" id="resumenOps">Todavía no hay operaciones cargadas.</div>
@@ -286,6 +301,7 @@
     }
 
     const STORAGE_KEY = "caucion_operaciones_diarias";
+    let editandoOperacionId = null;
 
     function getOperaciones() {
       try {
@@ -298,6 +314,19 @@
 
     function saveOperaciones(ops) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(ops));
+    }
+
+    function limpiarFormularioOperacion() {
+      document.getElementById("tipoOp").value = "compra";
+      document.getElementById("opPrecio").value = "";
+      document.getElementById("opVN").value = "0";
+    }
+
+    function setModoEdicion(activo) {
+      const btnGuardar = document.getElementById("btnGuardarOp");
+      const btnCancelar = document.getElementById("btnCancelarEdicion");
+      btnGuardar.textContent = activo ? "Guardar cambios" : "Agregar operación";
+      btnCancelar.style.display = activo ? "block" : "none";
     }
 
     function agregarOperacion() {
@@ -315,24 +344,58 @@
       const neto = tipo === "compra" ? bruto + der : bruto - der;
 
       const ops = getOperaciones();
-      ops.push({
-        id: Date.now(),
-        fecha: new Date().toISOString(),
-        tipo,
-        precio,
-        VN,
-        neto
-      });
-      saveOperaciones(ops);
+      if (editandoOperacionId !== null) {
+        const idx = ops.findIndex((op) => op.id === editandoOperacionId);
+        if (idx !== -1) {
+          ops[idx] = { ...ops[idx], tipo, precio, VN, neto };
+        }
+      } else {
+        ops.push({
+          id: Date.now(),
+          fecha: new Date().toISOString(),
+          tipo,
+          precio,
+          VN,
+          neto
+        });
+      }
 
-      document.getElementById("opPrecio").value = "";
-      document.getElementById("opVN").value = "0";
+      saveOperaciones(ops);
+      cancelarEdicion();
       renderOperaciones();
     }
 
     function borrarOperaciones() {
       if (!confirm("¿Seguro que querés borrar todo el registro diario?")) return;
       localStorage.removeItem(STORAGE_KEY);
+      cancelarEdicion();
+      renderOperaciones();
+    }
+
+    function editarOperacion(id) {
+      const op = getOperaciones().find((item) => item.id === id);
+      if (!op) return;
+      editandoOperacionId = id;
+      document.getElementById("tipoOp").value = op.tipo;
+      document.getElementById("opVN").value = String(op.VN);
+      document.getElementById("opPrecio").value = String(op.precio);
+      setModoEdicion(true);
+      document.getElementById("opPrecio").focus();
+    }
+
+    function cancelarEdicion() {
+      editandoOperacionId = null;
+      limpiarFormularioOperacion();
+      setModoEdicion(false);
+    }
+
+    function borrarOperacion(id) {
+      const ops = getOperaciones();
+      const nuevasOps = ops.filter((op) => op.id !== id);
+      saveOperaciones(nuevasOps);
+      if (editandoOperacionId === id) {
+        cancelarEdicion();
+      }
       renderOperaciones();
     }
 
@@ -379,7 +442,10 @@
           <td>${op.VN.toLocaleString("es-AR")}</td>
           <td>$ ${fmtMoneyARS(op.neto)}</td>
           <td class="action-cell">
-            <button class="btn-delete" type="button" title="Eliminar operación" onclick="borrarOperacion(${op.id})">✖</button>
+            <div class="action-buttons">
+              <button class="btn-icon btn-edit" type="button" title="Editar operación" onclick="editarOperacion(${op.id})">✎</button>
+              <button class="btn-icon btn-delete" type="button" title="Eliminar operación" onclick="borrarOperacion(${op.id})">✖</button>
+            </div>
           </td>
         </tr>`;
       }).join("");
