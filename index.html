@@ -203,6 +203,14 @@
       <div class="muted">
         Derecho de mercado aplicado: 0,01% (0,0001) sobre el bruto (compra suma, venta resta).
       </div>
+
+      <div class="hr"></div>
+      <h1>Calculadora Short / Long</h1>
+      <label>Precio base</label>
+      <input type="number" id="precioBaseSL" placeholder="Ej: 92150">
+      <div class="muted">Referencia usada: ±30 puntos.</div>
+      <button onclick="calcularShortLong()">Calcular Short / Long</button>
+      <div class="result" id="outShortLong">Ingresá un precio base para calcular.</div>
     </div>
     <div class="card">
       <h1>Registro diario de operaciones</h1>
@@ -300,6 +308,23 @@
         `<div class="hr"></div>` +
         `<b class="${cls}">💰 Ganancia neta:</b> <b class="${cls}">$ ${fmtMoneyARS(gananciaNeta)}</b><br>` +
         `<b>Ganancia por nominal:</b> ${gananciaPorNominal.toLocaleString("es-AR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
+    }
+
+    function calcularShortLong() {
+      const precioBase = parseFloat(document.getElementById("precioBaseSL").value);
+      if (!isFinite(precioBase) || precioBase <= 0) {
+        document.getElementById("outShortLong").innerHTML = "Ingresá un precio base válido.";
+        return;
+      }
+
+      const ajuste = 30;
+      const precioLong = precioBase + ajuste;
+      const precioShort = precioBase - ajuste;
+
+      document.getElementById("outShortLong").innerHTML =
+        `<b>Precio base:</b> $ ${fmtMoneyARS(precioBase)}<br>` +
+        `<b class="ok">LONG (+${ajuste}):</b> $ ${fmtMoneyARS(precioLong)}<br>` +
+        `<b class="bad">SHORT (-${ajuste}):</b> $ ${fmtMoneyARS(precioShort)}`;
     }
     const STORAGE_KEY = "caucion_operaciones_diarias";
     const COL_WIDTHS_KEY = "caucion_table_col_widths";
