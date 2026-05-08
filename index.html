@@ -4,10 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Calculadora de Caución</title>
-
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#111827">
-
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -105,7 +103,8 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 560px;
+      min-width: 700px;
+      table-layout: fixed;
     }
     th, td {
       padding: 8px;
@@ -113,9 +112,59 @@
       text-align: left;
       font-size: 13px;
     }
+    td.action-cell {
+      text-align: center;
+      width: 96px;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+    }
+    .btn-icon {
+      background: transparent;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      width: auto;
+      min-width: 24px;
+    }
+    .btn-edit {
+      color: #38bdf8;
+    }
+    .btn-edit:hover {
+      color: #7dd3fc;
+    }
+    .btn-delete {
+      color: #ef4444;
+    }
+    .btn-delete:hover {
+      color: #f87171;
+    }
     th {
       color: #cbd5e1;
       background: #0f172a;
+      position: relative;
+    }
+    th.resizable {
+      user-select: none;
+    }
+    .col-resizer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 8px;
+      height: 100%;
+      cursor: col-resize;
+      border-right: 1px solid transparent;
+    }
+    .col-resizer:hover {
+      border-right-color: #3b82f6;
     }
     @media (max-width: 980px) {
       .container {
@@ -127,21 +176,16 @@
     }
   </style>
 </head>
-
 <body>
   <div class="container">
     <div class="card">
       <h1>Calculadora de Caución <span class="pill">AL30 / GD30</span></h1>
-
       <label>Precio Compra (A)</label>
       <input type="number" id="A" placeholder="Ej: 87010">
-
       <label>Precio Venta (B)</label>
       <input type="number" id="B" placeholder="Ej: 87050">
-
       <label>Nominales (VN)</label>
       <input type="number" id="VN" value="0" placeholder="Ej: 20000">
-
       <div class="row">
         <div>
           <label>Días hábiles/año</label>
@@ -152,18 +196,22 @@
           <input type="text" value="simple" readonly>
         </div>
       </div>
-
       <button onclick="calcular()">Calcular</button>
-
       <div class="result" id="out">
         Ingresá valores para calcular.
       </div>
-
       <div class="muted">
         Derecho de mercado aplicado: 0,01% (0,0001) sobre el bruto (compra suma, venta resta).
       </div>
-    </div>
 
+      <div class="hr"></div>
+      <h1>Calculadora Short / Long</h1>
+      <label>Precio base</label>
+      <input type="number" id="precioBaseSL" placeholder="Ej: 92150">
+      <div class="muted">Referencia usada: ±30 puntos.</div>
+      <button onclick="calcularShortLong()">Calcular Short / Long</button>
+      <div class="result" id="outShortLong">Ingresá un precio base para calcular.</div>
+    </div>
     <div class="card">
       <h1>Registro diario de operaciones</h1>
       <div class="row">
@@ -181,21 +229,29 @@
       </div>
       <label>Precio</label>
       <input type="number" id="opPrecio" placeholder="Ej: 88000">
-
-      <button onclick="agregarOperacion()">Agregar operación</button>
+      <button id="btnGuardarOp" onclick="agregarOperacion()">Agregar operación</button>
+      <button id="btnCancelarEdicion" class="btn-secondary" style="display:none" onclick="cancelarEdicion()">Cancelar edición</button>
+      <button class="btn-secondary" onclick="exportarOperacionesTXT()">Exportar TXT</button>
       <button class="btn-secondary" onclick="borrarOperaciones()">Borrar todo</button>
-
       <div class="result" id="resumenOps">Todavía no hay operaciones cargadas.</div>
-
       <div class="table-wrap">
-        <table>
+        <table id="tablaRegistro">
+          <colgroup>
+            <col id="col-fecha" style="width: 140px;">
+            <col id="col-tipo" style="width: 100px;">
+            <col id="col-precio" style="width: 120px;">
+            <col id="col-vn" style="width: 110px;">
+            <col id="col-neto" style="width: 130px;">
+            <col id="col-accion" style="width: 96px;">
+          </colgroup>
           <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Precio</th>
-              <th>Nominales</th>
-              <th>Neto</th>
+              <th class="resizable" data-col-id="fecha">Fecha<div class="col-resizer"></div></th>
+              <th class="resizable" data-col-id="tipo">Tipo<div class="col-resizer"></div></th>
+              <th class="resizable" data-col-id="precio">Precio<div class="col-resizer"></div></th>
+              <th class="resizable" data-col-id="vn">Nominales<div class="col-resizer"></div></th>
+              <th class="resizable" data-col-id="neto">Neto<div class="col-resizer"></div></th>
+              <th>Acción</th>
             </tr>
           </thead>
           <tbody id="tablaOps"></tbody>
@@ -204,47 +260,37 @@
       <div class="muted">El registro se guarda automáticamente en este dispositivo hasta que presiones "Borrar todo".</div>
     </div>
   </div>
-
   <script>
     function fmtMoneyARS(n) {
       return n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-
     function calcular() {
       const A = parseFloat(document.getElementById("A").value);
       const B = parseFloat(document.getElementById("B").value);
       const VN = parseFloat(document.getElementById("VN").value || "0");
       const dias = parseFloat(document.getElementById("dias").value || "365");
-
       if (!isFinite(A) || !isFinite(B) || A <= 0 || VN <= 0) {
         document.getElementById("out").innerHTML = "Ingresá valores válidos. (A > 0 y VN > 0)";
         return;
       }
-
       // Spread y caución (manteniendo el concepto de diferencia)
       const diferencia = Math.abs(B - A);
       const caucionDiaria = (diferencia / A) * 100;
       const caucionAnual = caucionDiaria * dias;
-
       // Derecho de mercado 0,01% = 0,0001
       const derecho = 0.0001;
-
       // Brutos (precio cotiza por 100)
       const brutoCompra = VN * (A / 100);
       const derCompra = brutoCompra * derecho;
       const netoCompra = brutoCompra + derCompra;
-
       const brutoVenta = VN * (B / 100);
       const derVenta = brutoVenta * derecho;
       const netoVenta = brutoVenta - derVenta;
-
       // Resultado neto
       const gananciaNeta = netoVenta - netoCompra;
       const gananciaPorNominal = gananciaNeta / VN;
-
       const cls = gananciaNeta >= 0 ? "ok" : "bad";
       const signo = gananciaNeta >= 0 ? "" : "-";
-
       document.getElementById("out").innerHTML =
         `<b>Diferencia (Compra vs Venta):</b> ${diferencia.toFixed(2)}<br>` +
         `<b>Caución diaria:</b> ${caucionDiaria.toFixed(4)} %<br>` +
@@ -264,8 +310,28 @@
         `<b>Ganancia por nominal:</b> ${gananciaPorNominal.toLocaleString("es-AR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
     }
 
-    const STORAGE_KEY = "caucion_operaciones_diarias";
+    function calcularShortLong() {
+      const precioBase = parseFloat(document.getElementById("precioBaseSL").value);
+      if (!isFinite(precioBase) || precioBase <= 0) {
+        document.getElementById("outShortLong").innerHTML = "Ingresá un precio base válido.";
+        return;
+      }
 
+      const ajuste = 30;
+      const precioLong = precioBase + ajuste;
+      const precioShort = precioBase - ajuste;
+
+      document.getElementById("outShortLong").innerHTML =
+        `<b>Precio base:</b> $ ${fmtMoneyARS(precioBase)}<br>` +
+        `<b class="ok">LONG (+${ajuste}):</b> $ ${fmtMoneyARS(precioLong)}<br>` +
+        `<b class="bad">SHORT (-${ajuste}):</b> $ ${fmtMoneyARS(precioShort)}`;
+    }
+    const STORAGE_KEY = "caucion_operaciones_diarias";
+    const COL_WIDTHS_KEY = "caucion_table_col_widths";
+    let editandoOperacionId = null;
+    function fmtFechaSoloDia(fechaISO) {
+      return new Date(fechaISO).toLocaleDateString("es-AR");
+    }
     function getOperaciones() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -274,11 +340,20 @@
         return [];
       }
     }
-
     function saveOperaciones(ops) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(ops));
     }
-
+    function limpiarFormularioOperacion() {
+      document.getElementById("tipoOp").value = "compra";
+      document.getElementById("opPrecio").value = "";
+      document.getElementById("opVN").value = "0";
+    }
+    function setModoEdicion(activo) {
+      const btnGuardar = document.getElementById("btnGuardarOp");
+      const btnCancelar = document.getElementById("btnCancelarEdicion");
+      btnGuardar.textContent = activo ? "Guardar cambios" : "Agregar operación";
+      btnCancelar.style.display = activo ? "block" : "none";
+    }
     function agregarOperacion() {
       const tipo = document.getElementById("tipoOp").value;
       const VN = parseFloat(document.getElementById("opVN").value || "0");
@@ -287,51 +362,156 @@
         alert("Ingresá un precio y nominales válidos.");
         return;
       }
-
       const derecho = 0.0001;
       const bruto = VN * (precio / 100);
       const der = bruto * derecho;
       const neto = tipo === "compra" ? bruto + der : bruto - der;
-
       const ops = getOperaciones();
-      ops.push({
-        id: Date.now(),
-        fecha: new Date().toISOString(),
-        tipo,
-        precio,
-        VN,
-        neto
-      });
+      if (editandoOperacionId !== null) {
+        const idx = ops.findIndex((op) => op.id === editandoOperacionId);
+        if (idx !== -1) {
+          ops[idx] = { ...ops[idx], tipo, precio, VN, neto };
+        }
+      } else {
+        ops.push({
+          id: Date.now(),
+          fecha: new Date().toISOString(),
+          tipo,
+          precio,
+          VN,
+          neto
+        });
+      }
       saveOperaciones(ops);
-
-      document.getElementById("opPrecio").value = "";
-      document.getElementById("opVN").value = "0";
+      cancelarEdicion();
       renderOperaciones();
     }
-
     function borrarOperaciones() {
       if (!confirm("¿Seguro que querés borrar todo el registro diario?")) return;
       localStorage.removeItem(STORAGE_KEY);
+      cancelarEdicion();
       renderOperaciones();
     }
-
+    function editarOperacion(id) {
+      const op = getOperaciones().find((item) => item.id === id);
+      if (!op) return;
+      editandoOperacionId = id;
+      document.getElementById("tipoOp").value = op.tipo;
+      document.getElementById("opVN").value = String(op.VN);
+      document.getElementById("opPrecio").value = String(op.precio);
+      setModoEdicion(true);
+      document.getElementById("opPrecio").focus();
+    }
+    function cancelarEdicion() {
+      editandoOperacionId = null;
+      limpiarFormularioOperacion();
+      setModoEdicion(false);
+    }
+    function borrarOperacion(id) {
+      const ops = getOperaciones();
+      const nuevasOps = ops.filter((op) => op.id !== id);
+      saveOperaciones(nuevasOps);
+      if (editandoOperacionId === id) {
+        cancelarEdicion();
+      }
+      renderOperaciones();
+    }
+    function exportarOperacionesTXT() {
+      const ops = getOperaciones();
+      const comprasPendientes = [];
+      const filas = [];
+      for (const op of ops) {
+        if (op.tipo === "compra") {
+          comprasPendientes.push({ precio: op.precio, restante: op.VN });
+          continue;
+        }
+        if (op.tipo !== "venta") continue;
+        let restanteVenta = op.VN;
+        while (restanteVenta > 0 && comprasPendientes.length > 0) {
+          const compra = comprasPendientes[0];
+          const cantidad = Math.min(restanteVenta, compra.restante);
+          filas.push([
+            fmtMoneyARS(compra.precio),
+            fmtMoneyARS(op.precio),
+            cantidad.toLocaleString("es-AR"),
+            fmtFechaSoloDia(op.fecha)
+          ]);
+          compra.restante -= cantidad;
+          restanteVenta -= cantidad;
+          if (compra.restante <= 0) {
+            comprasPendientes.shift();
+          }
+        }
+        if (restanteVenta > 0) {
+          filas.push([
+            "",
+            fmtMoneyARS(op.precio),
+            restanteVenta.toLocaleString("es-AR"),
+            fmtFechaSoloDia(op.fecha)
+          ]);
+        }
+      }
+      if (!filas.length) {
+        alert("No hay operaciones suficientes para exportar en el formato solicitado.");
+        return;
+      }
+      const encabezado = ["Precio de Compra", "Precio de Venta", "Cantidad", "Fecha de la Venta"];
+      const contenido = [encabezado, ...filas].map((fila) => fila.join("\t")).join("\n");
+      const blob = new Blob([contenido], { type: "text/plain;charset=utf-8" });
+      const enlace = document.createElement("a");
+      enlace.href = URL.createObjectURL(blob);
+      enlace.download = `registro_operaciones_${new Date().toISOString().slice(0, 10)}.txt`;
+      enlace.click();
+      URL.revokeObjectURL(enlace.href);
+    }
+    function initResizableColumns() {
+      const table = document.getElementById("tablaRegistro");
+      const savedWidths = JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || "{}");
+      for (const [colId, width] of Object.entries(savedWidths)) {
+        const colEl = document.getElementById(`col-${colId}`);
+        if (colEl && Number.isFinite(width)) {
+          colEl.style.width = `${Math.max(70, width)}px`;
+        }
+      }
+      table.querySelectorAll("th.resizable").forEach((th) => {
+        const colId = th.getAttribute("data-col-id");
+        const resizer = th.querySelector(".col-resizer");
+        const colEl = document.getElementById(`col-${colId}`);
+        if (!resizer || !colEl) return;
+        resizer.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          const startX = event.clientX;
+          const startWidth = colEl.getBoundingClientRect().width;
+          function onMouseMove(moveEvent) {
+            const nextWidth = Math.max(70, startWidth + (moveEvent.clientX - startX));
+            colEl.style.width = `${nextWidth}px`;
+          }
+          function onMouseUp() {
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+            const stored = JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || "{}");
+            stored[colId] = Math.round(colEl.getBoundingClientRect().width);
+            localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(stored));
+          }
+          document.addEventListener("mousemove", onMouseMove);
+          document.addEventListener("mouseup", onMouseUp);
+        });
+      });
+    }
     function renderOperaciones() {
       const ops = getOperaciones();
       const tbody = document.getElementById("tablaOps");
       const resumen = document.getElementById("resumenOps");
-
       if (!ops.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="muted">Sin operaciones</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="muted">Sin operaciones</td></tr>`;
         resumen.innerHTML = "Todavía no hay operaciones cargadas.";
         return;
       }
-
       let netoCompras = 0;
       let netoVentas = 0;
       let vnCompras = 0;
       let vnVentas = 0;
       let sumaPrecioPorVNCompras = 0;
-
       tbody.innerHTML = ops.map((op) => {
         if (op.tipo === "compra") {
           netoCompras += op.neto;
@@ -341,8 +521,7 @@
           netoVentas += op.neto;
           vnVentas += op.VN;
         }
-
-        const fechaFmt = new Date(op.fecha).toLocaleString("es-AR");
+        const fechaFmt = fmtFechaSoloDia(op.fecha);
         const tipoEmoji = op.tipo === "compra" ? "🟢 Compra" : "🔵 Venta";
         return `<tr>
           <td>${fechaFmt}</td>
@@ -350,14 +529,18 @@
           <td>$ ${fmtMoneyARS(op.precio)}</td>
           <td>${op.VN.toLocaleString("es-AR")}</td>
           <td>$ ${fmtMoneyARS(op.neto)}</td>
+          <td class="action-cell">
+            <div class="action-buttons">
+              <button class="btn-icon btn-edit" type="button" title="Editar operación" onclick="editarOperacion(${op.id})">✎</button>
+              <button class="btn-icon btn-delete" type="button" title="Eliminar operación" onclick="borrarOperacion(${op.id})">✖</button>
+            </div>
+          </td>
         </tr>`;
       }).join("");
-
       const gananciaTotal = netoVentas - netoCompras;
       const cls = gananciaTotal >= 0 ? "ok" : "bad";
       const precioPromedioCompra = vnCompras > 0 ? (sumaPrecioPorVNCompras / vnCompras) : 0;
       const nominalesNetos = vnCompras - vnVentas;
-
       resumen.innerHTML =
         `<b>Total compras (neto):</b> $ ${fmtMoneyARS(netoCompras)}<br>` +
         `<b>Total ventas (neto):</b> $ ${fmtMoneyARS(netoVentas)}<br>` +
@@ -367,9 +550,8 @@
         `<b>Posición neta (compras - ventas):</b> ${nominalesNetos.toLocaleString("es-AR")}<br>` +
         `<b>Precio promedio de compra:</b> $ ${fmtMoneyARS(precioPromedioCompra)}`;
     }
-
+    initResizableColumns();
     renderOperaciones();
-
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js");
     }
