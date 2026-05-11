@@ -279,9 +279,13 @@
       </div>
       <div class="muted">El gráfico se calcula en saltos de 10 puntos: base, base+10, ... hasta base+1000.</div>
       <button onclick="calcularGraficoGanancia()">Generar gráfico</button>
+      <div class="row">
+        <button class="btn-secondary" onclick="zoomGrafico(1.2)">Zoom +</button>
+        <button class="btn-secondary" onclick="zoomGrafico(1 / 1.2)">Zoom -</button>
+      </div>
       <div class="result" id="outGraficoGanancia">Ingresá precio base y cantidad para generar el gráfico.</div>
       <div class="table-wrap">
-        <svg id="chartGanancia" viewBox="0 0 960 320" style="width:100%;height:auto;background:#0b1220;border:1px solid #243042;border-radius:10px;"></svg>
+        <svg id="chartGanancia" viewBox="0 0 960 320" style="width:100%;height:auto;background:#0b1220;border:1px solid #243042;border-radius:10px;transform-origin:top left;"></svg>
       </div>
       <div class="muted" id="tooltipGraficoGanancia">Pasá el mouse sobre la línea del gráfico para ver detalle de cada punto.</div>
     </div>
@@ -449,13 +453,14 @@
         const xOp = xToPx(op.precio);
         const yOp = yToPx(gananciaOp);
         const colorOp = op.tipo === "compra" ? "#22c55e" : "#ef4444";
-        const labelOp = op.tipo === "compra" ? "C" : "V";
-        const radioOp = op.id === ultimaOpId ? 8 : 5;
+        const radioOp = op.id === ultimaOpId ? 10 : 7;
         const strokeOp = op.id === ultimaOpId ? "#ffffff" : "#0b1220";
         const strokeW = op.id === ultimaOpId ? 2 : 1.5;
+        const formaOp = op.tipo === "compra"
+          ? `${xOp},${yOp - radioOp} ${xOp - radioOp},${yOp + radioOp} ${xOp + radioOp},${yOp + radioOp}`
+          : `${xOp},${yOp + radioOp} ${xOp - radioOp},${yOp - radioOp} ${xOp + radioOp},${yOp - radioOp}`;
         puntosOperaciones += `
-          <circle cx="${xOp}" cy="${yOp}" r="${radioOp}" fill="${colorOp}" stroke="${strokeOp}" stroke-width="${strokeW}" />
-          <text x="${xOp}" y="${yOp + 3}" font-size="8" fill="#ffffff" text-anchor="middle">${labelOp}</text>
+          <polygon points="${formaOp}" fill="${colorOp}" stroke="${strokeOp}" stroke-width="${strokeW}" />
         `;
       }
 
@@ -515,9 +520,22 @@
       svg.onmouseleave = () => {
         tooltip.innerHTML = "Pasá el mouse sobre la línea del gráfico para ver detalle de cada punto.";
       };
+      applyChartZoom();
+    }
+
+    function applyChartZoom() {
+      const svg = document.getElementById("chartGanancia");
+      if (!svg) return;
+      svg.style.transform = `scale(${chartZoomFactor})`;
+    }
+
+    function zoomGrafico(multiplier) {
+      chartZoomFactor = Math.min(3, Math.max(1, chartZoomFactor * multiplier));
+      applyChartZoom();
     }
     const STORAGE_KEY = "caucion_operaciones_diarias";
     const COL_WIDTHS_KEY = "caucion_table_col_widths";
+    let chartZoomFactor = 1;
     let editandoOperacionId = null;
     function fmtFechaSoloDia(fechaISO) {
       return new Date(fechaISO).toLocaleDateString("es-AR");
