@@ -366,12 +366,20 @@
       }
 
       const step = 10;
-      const totalPuntos = 101;
+      const ops = getOperaciones();
+      const preciosOps = ops.map((op) => op.precio).filter((p) => isFinite(p));
+      const minPrecioOps = preciosOps.length ? Math.min(...preciosOps) : base;
+      const maxPrecioOps = preciosOps.length ? Math.max(...preciosOps) : (base + 1000);
+      const minPrecioRango = Math.min(base, minPrecioOps);
+      const maxPrecioRango = Math.max(base + 1000, maxPrecioOps);
+      const minPrecioAjustado = Math.floor(minPrecioRango / step) * step;
+      const maxPrecioAjustado = Math.ceil(maxPrecioRango / step) * step;
+      const totalPuntos = Math.floor((maxPrecioAjustado - minPrecioAjustado) / step) + 1;
       const derecho = 0.0001;
       const netoCompraBase = (cantidad * (base / 100)) * (1 + derecho);
       const puntos = [];
       for (let i = 0; i < totalPuntos; i++) {
-        const precio = base + (i * step);
+        const precio = minPrecioAjustado + (i * step);
         const netoVenta = (cantidad * (precio / 100)) * (1 - derecho);
         const ganancia = netoVenta - netoCompraBase;
         puntos.push({ precio, ganancia });
@@ -380,14 +388,15 @@
       out.innerHTML =
         `<b>Base:</b> $ ${fmtMoneyARS(base)}<br>` +
         `<b>Cantidad:</b> ${cantidad.toLocaleString("es-AR")}<br>` +
-        `<b>Rango X (precio):</b> $ ${fmtMoneyARS(base)} a $ ${fmtMoneyARS(base + (step * (totalPuntos - 1)))}<br>` +
+        `<b>Rango X (precio):</b> $ ${fmtMoneyARS(minPrecioAjustado)} a $ ${fmtMoneyARS(maxPrecioAjustado)}<br>` +
         `<b>Rango Y (ganancia neta):</b> $ ${fmtMoneyARS(puntos[0].ganancia)} a $ ${fmtMoneyARS(puntos[puntos.length - 1].ganancia)}<br>` +
-        `<b>Derecho aplicado:</b> 0,01% (compra suma, venta resta)`;
+        `<b>Derecho aplicado:</b> 0,01% (compra suma, venta resta)<br>` +
+        `<b>Operaciones en gráfico:</b> ${ops.length}`;
 
-      renderizarGraficoGanancia(svg, puntos);
+      renderizarGraficoGanancia(svg, puntos, ops, base, cantidad);
     }
 
-    function renderizarGraficoGanancia(svg, puntos) {
+    function renderizarGraficoGanancia(svg, puntos, ops, base, cantidad) {
       const width = 960;
       const height = 320;
       const padLeft = 75;
@@ -431,6 +440,21 @@
         `;
       }
 
+      let puntosOperaciones = "";
+      for (const op of ops) {
+        if (!isFinite(op.precio)) continue;
+        const netoVentaOp = (cantidad * (op.precio / 100)) * (1 - 0.0001);
+        const gananciaOp = netoVentaOp - ((cantidad * (base / 100)) * (1 + 0.0001));
+        const xOp = xToPx(op.precio);
+        const yOp = yToPx(gananciaOp);
+        const colorOp = op.tipo === "compra" ? "#22c55e" : "#38bdf8";
+        const labelOp = op.tipo === "compra" ? "C" : "V";
+        puntosOperaciones += `
+          <circle cx="${xOp}" cy="${yOp}" r="5" fill="${colorOp}" stroke="#0b1220" stroke-width="1.5" />
+          <text x="${xOp}" y="${yOp + 3}" font-size="8" fill="#ffffff" text-anchor="middle">${labelOp}</text>
+        `;
+      }
+
       let breakEvenLine = "";
       if (minY <= 0 && maxY >= 0) {
         const yZero = yToPx(0);
@@ -458,6 +482,7 @@
         ${breakEvenLine}
         <path d="${path}" fill="none" stroke="#22c55e" stroke-width="2.5" />
         ${circles}
+        ${puntosOperaciones}
         ${puntoCompra}
         ${xLabels}
         ${yLabels}
