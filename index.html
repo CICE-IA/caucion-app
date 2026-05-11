@@ -31,6 +31,9 @@
       margin-bottom: 0;
       height: fit-content;
     }
+    .card-full {
+      grid-column: 1 / -1;
+    }
     h1 { font-size: 20px; margin: 0 0 12px; }
     label { display: block; margin-top: 12px; font-size: 14px; color: #cbd5e1; }
     input {
@@ -173,6 +176,9 @@
       .card {
         margin-bottom: 14px;
       }
+      .card-full {
+        grid-column: auto;
+      }
     }
   </style>
 </head>
@@ -259,6 +265,25 @@
       </div>
       <div class="muted">El registro se guarda automáticamente en este dispositivo hasta que presiones "Borrar todo".</div>
     </div>
+    <div class="card card-full">
+      <h1>Módulo de Ganancia por Precio del Bono</h1>
+      <div class="row">
+        <div>
+          <label>Precio base del bono</label>
+          <input type="number" id="precioBaseGraf" placeholder="Ej: 92100">
+        </div>
+        <div>
+          <label>Cantidad (VN)</label>
+          <input type="number" id="cantidadGraf" value="10000" placeholder="Ej: 10000">
+        </div>
+      </div>
+      <div class="muted">El gráfico se calcula en saltos de 10 puntos: base, base+10, base+20, ...</div>
+      <button onclick="calcularGraficoGanancia()">Generar gráfico</button>
+      <div class="result" id="outGraficoGanancia">Ingresá precio base y cantidad para generar el gráfico.</div>
+      <div class="table-wrap">
+        <svg id="chartGanancia" viewBox="0 0 960 320" style="width:100%;height:auto;background:#0b1220;border:1px solid #243042;border-radius:10px;"></svg>
+      </div>
+    </div>
   </div>
   <script>
     function fmtMoneyARS(n) {
@@ -325,6 +350,90 @@
         `<b>Precio base:</b> $ ${fmtMoneyARS(precioBase)}<br>` +
         `<b class="ok">LONG (+${ajuste}):</b> $ ${fmtMoneyARS(precioLong)}<br>` +
         `<b class="bad">SHORT (-${ajuste}):</b> $ ${fmtMoneyARS(precioShort)}`;
+    }
+
+    function calcularGraficoGanancia() {
+      const base = parseFloat(document.getElementById("precioBaseGraf").value);
+      const cantidad = parseFloat(document.getElementById("cantidadGraf").value || "0");
+      const out = document.getElementById("outGraficoGanancia");
+      const svg = document.getElementById("chartGanancia");
+
+      if (!isFinite(base) || base <= 0 || !isFinite(cantidad) || cantidad <= 0) {
+        out.innerHTML = "Ingresá un precio base y una cantidad válidos.";
+        svg.innerHTML = "";
+        return;
+      }
+
+      const step = 10;
+      const totalPuntos = 11;
+      const puntos = [];
+      for (let i = 0; i < totalPuntos; i++) {
+        const precio = base + (i * step);
+        const ganancia = ((precio - base) / 100) * cantidad;
+        puntos.push({ precio, ganancia });
+      }
+
+      out.innerHTML =
+        `<b>Base:</b> $ ${fmtMoneyARS(base)}<br>` +
+        `<b>Cantidad:</b> ${cantidad.toLocaleString("es-AR")}<br>` +
+        `<b>Rango X (precio):</b> $ ${fmtMoneyARS(base)} a $ ${fmtMoneyARS(base + (step * (totalPuntos - 1)))}<br>` +
+        `<b>Rango Y (ganancia):</b> $ ${fmtMoneyARS(puntos[0].ganancia)} a $ ${fmtMoneyARS(puntos[puntos.length - 1].ganancia)}`;
+
+      renderizarGraficoGanancia(svg, puntos);
+    }
+
+    function renderizarGraficoGanancia(svg, puntos) {
+      const width = 960;
+      const height = 320;
+      const padLeft = 75;
+      const padRight = 20;
+      const padTop = 20;
+      const padBottom = 45;
+      const plotW = width - padLeft - padRight;
+      const plotH = height - padTop - padBottom;
+
+      const minX = puntos[0].precio;
+      const maxX = puntos[puntos.length - 1].precio;
+      const minY = Math.min(...puntos.map((p) => p.ganancia));
+      const maxY = Math.max(...puntos.map((p) => p.ganancia));
+      const ySpan = maxY - minY || 1;
+
+      const xToPx = (x) => padLeft + ((x - minX) / (maxX - minX || 1)) * plotW;
+      const yToPx = (y) => padTop + (1 - ((y - minY) / ySpan)) * plotH;
+
+      const path = puntos.map((p, idx) => `${idx === 0 ? "M" : "L"} ${xToPx(p.precio)} ${yToPx(p.ganancia)}`).join(" ");
+
+      let circles = "";
+      let xLabels = "";
+      for (const p of puntos) {
+        const x = xToPx(p.precio);
+        const y = yToPx(p.ganancia);
+        circles += `<circle cx="${x}" cy="${y}" r="3" fill="#22c55e" />`;
+        xLabels += `<text x="${x}" y="${height - 12}" font-size="10" fill="#cbd5e1" text-anchor="middle">${Math.round(p.precio)}</text>`;
+      }
+
+      const yTicks = 5;
+      let yGrid = "";
+      let yLabels = "";
+      for (let i = 0; i <= yTicks; i++) {
+        const t = i / yTicks;
+        const yVal = maxY - t * ySpan;
+        const yPx = padTop + t * plotH;
+        yGrid += `<line x1="${padLeft}" y1="${yPx}" x2="${width - padRight}" y2="${yPx}" stroke="#1f2937" stroke-width="1" />`;
+        yLabels += `<text x="${padLeft - 8}" y="${yPx + 4}" font-size="10" fill="#cbd5e1" text-anchor="end">$${fmtMoneyARS(yVal)}</text>`;
+      }
+
+      svg.innerHTML = `
+        <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${height - padBottom}" stroke="#64748b" />
+        <line x1="${padLeft}" y1="${height - padBottom}" x2="${width - padRight}" y2="${height - padBottom}" stroke="#64748b" />
+        ${yGrid}
+        <path d="${path}" fill="none" stroke="#22c55e" stroke-width="2.5" />
+        ${circles}
+        ${xLabels}
+        ${yLabels}
+        <text x="${width / 2}" y="${height - 2}" font-size="12" fill="#e5e7eb" text-anchor="middle">X: Precio del bono</text>
+        <text x="16" y="${height / 2}" font-size="12" fill="#e5e7eb" text-anchor="middle" transform="rotate(-90 16 ${height / 2})">Y: Ganancia</text>
+      `;
     }
     const STORAGE_KEY = "caucion_operaciones_diarias";
     const COL_WIDTHS_KEY = "caucion_table_col_widths";
