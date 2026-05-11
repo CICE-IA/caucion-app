@@ -277,15 +277,21 @@
           <input type="number" id="cantidadGraf" value="10000" placeholder="Ej: 10000">
         </div>
       </div>
-      <div class="muted">El gráfico se calcula en saltos de 10 puntos: base, base+10, ... hasta base+1000.</div>
-      <button onclick="calcularGraficoGanancia()">Generar gráfico</button>
       <div class="row">
-        <button class="btn-secondary" onclick="zoomGrafico(1.2)">Zoom +</button>
-        <button class="btn-secondary" onclick="zoomGrafico(1 / 1.2)">Zoom -</button>
+        <div>
+          <label>Rango precio (Desde)</label>
+          <input type="number" id="precioDesdeGraf" placeholder="Ej: 92100">
+        </div>
+        <div>
+          <label>Rango precio (Hasta)</label>
+          <input type="number" id="precioHastaGraf" placeholder="Ej: 93100">
+        </div>
       </div>
+      <div class="muted">Escala configurable por rango. Se calcula en saltos de 10 puntos.</div>
+      <button onclick="calcularGraficoGanancia()">Generar gráfico</button>
       <div class="result" id="outGraficoGanancia">Ingresá precio base y cantidad para generar el gráfico.</div>
       <div class="table-wrap">
-        <svg id="chartGanancia" viewBox="0 0 960 320" style="width:100%;height:auto;background:#0b1220;border:1px solid #243042;border-radius:10px;transform-origin:top left;"></svg>
+        <svg id="chartGanancia" viewBox="0 0 960 320" style="width:100%;height:auto;background:#0b1220;border:1px solid #243042;border-radius:10px;"></svg>
       </div>
       <div class="muted" id="tooltipGraficoGanancia">Pasá el mouse sobre la línea del gráfico para ver detalle de cada punto.</div>
     </div>
@@ -370,12 +376,21 @@
       }
 
       const step = 10;
+      const desdeInput = parseFloat(document.getElementById("precioDesdeGraf").value);
+      const hastaInput = parseFloat(document.getElementById("precioHastaGraf").value);
       const ops = getOperaciones();
       const preciosOps = ops.map((op) => op.precio).filter((p) => isFinite(p));
       const minPrecioOps = preciosOps.length ? Math.min(...preciosOps) : base;
       const maxPrecioOps = preciosOps.length ? Math.max(...preciosOps) : (base + 1000);
-      const minPrecioRango = Math.min(base, minPrecioOps);
-      const maxPrecioRango = Math.max(base + 1000, maxPrecioOps);
+      const minPrecioAuto = Math.min(base, minPrecioOps);
+      const maxPrecioAuto = Math.max(base + 1000, maxPrecioOps);
+      const minPrecioRango = isFinite(desdeInput) ? desdeInput : minPrecioAuto;
+      const maxPrecioRango = isFinite(hastaInput) ? hastaInput : maxPrecioAuto;
+      if (!(maxPrecioRango > minPrecioRango)) {
+        out.innerHTML = "El rango no es válido. 'Hasta' debe ser mayor que 'Desde'.";
+        svg.innerHTML = "";
+        return;
+      }
       const minPrecioAjustado = Math.floor(minPrecioRango / step) * step;
       const maxPrecioAjustado = Math.ceil(maxPrecioRango / step) * step;
       const totalPuntos = Math.floor((maxPrecioAjustado - minPrecioAjustado) / step) + 1;
@@ -425,11 +440,12 @@
       let xLabels = "";
       const precioCompraMarcado = minX;
       const gananciaCompraMarcada = puntos.find((p) => p.precio === precioCompraMarcado)?.ganancia;
+      const labelStep = maxX - minX > 1200 ? 100 : 50;
       for (const p of puntos) {
         const x = xToPx(p.precio);
         const y = yToPx(p.ganancia);
         circles += `<circle cx="${x}" cy="${y}" r="3" fill="#22c55e" />`;
-        if ((p.precio - minX) % 50 === 0) {
+        if ((p.precio - minX) % labelStep === 0) {
           xLabels += `<text x="${x}" y="${height - 12}" font-size="10" fill="#cbd5e1" text-anchor="middle">${Math.round(p.precio)}</text>`;
         }
       }
@@ -520,22 +536,9 @@
       svg.onmouseleave = () => {
         tooltip.innerHTML = "Pasá el mouse sobre la línea del gráfico para ver detalle de cada punto.";
       };
-      applyChartZoom();
-    }
-
-    function applyChartZoom() {
-      const svg = document.getElementById("chartGanancia");
-      if (!svg) return;
-      svg.style.transform = `scale(${chartZoomFactor})`;
-    }
-
-    function zoomGrafico(multiplier) {
-      chartZoomFactor = Math.min(3, Math.max(1, chartZoomFactor * multiplier));
-      applyChartZoom();
     }
     const STORAGE_KEY = "caucion_operaciones_diarias";
     const COL_WIDTHS_KEY = "caucion_table_col_widths";
-    let chartZoomFactor = 1;
     let editandoOperacionId = null;
     function fmtFechaSoloDia(fechaISO) {
       return new Date(fechaISO).toLocaleDateString("es-AR");
