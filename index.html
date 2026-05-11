@@ -410,7 +410,7 @@
 
       let circles = "";
       let xLabels = "";
-      const precioCompraMarcado = minX + 50;
+      const precioCompraMarcado = minX;
       const gananciaCompraMarcada = puntos.find((p) => p.precio === precioCompraMarcado)?.ganancia;
       for (const p of puntos) {
         const x = xToPx(p.precio);
@@ -427,7 +427,16 @@
         const yCompra = yToPx(gananciaCompraMarcada);
         puntoCompra = `
           <circle cx="${xCompra}" cy="${yCompra}" r="6" fill="#3b82f6" stroke="#bfdbfe" stroke-width="1.5" />
-          <text x="${xCompra}" y="${yCompra - 10}" font-size="11" fill="#93c5fd" text-anchor="middle">Compra +50</text>
+          <text x="${xCompra}" y="${yCompra - 10}" font-size="11" fill="#93c5fd" text-anchor="middle">Compra (base)</text>
+        `;
+      }
+
+      let breakEvenLine = "";
+      if (minY <= 0 && maxY >= 0) {
+        const yZero = yToPx(0);
+        breakEvenLine = `
+          <line x1="${padLeft}" y1="${yZero}" x2="${width - padRight}" y2="${yZero}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 4" />
+          <text x="${width - padRight}" y="${yZero - 6}" font-size="10" fill="#fbbf24" text-anchor="end">Break-even (0)</text>
         `;
       }
 
@@ -446,6 +455,7 @@
         <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${height - padBottom}" stroke="#64748b" />
         <line x1="${padLeft}" y1="${height - padBottom}" x2="${width - padRight}" y2="${height - padBottom}" stroke="#64748b" />
         ${yGrid}
+        ${breakEvenLine}
         <path d="${path}" fill="none" stroke="#22c55e" stroke-width="2.5" />
         ${circles}
         ${puntoCompra}
