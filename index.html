@@ -441,16 +441,20 @@
       }
 
       let puntosOperaciones = "";
+      const ultimaOpId = ops.length ? ops[ops.length - 1].id : null;
       for (const op of ops) {
         if (!isFinite(op.precio)) continue;
         const netoVentaOp = (cantidad * (op.precio / 100)) * (1 - 0.0001);
         const gananciaOp = netoVentaOp - ((cantidad * (base / 100)) * (1 + 0.0001));
         const xOp = xToPx(op.precio);
         const yOp = yToPx(gananciaOp);
-        const colorOp = op.tipo === "compra" ? "#22c55e" : "#38bdf8";
+        const colorOp = op.tipo === "compra" ? "#22c55e" : "#ef4444";
         const labelOp = op.tipo === "compra" ? "C" : "V";
+        const radioOp = op.id === ultimaOpId ? 8 : 5;
+        const strokeOp = op.id === ultimaOpId ? "#ffffff" : "#0b1220";
+        const strokeW = op.id === ultimaOpId ? 2 : 1.5;
         puntosOperaciones += `
-          <circle cx="${xOp}" cy="${yOp}" r="5" fill="${colorOp}" stroke="#0b1220" stroke-width="1.5" />
+          <circle cx="${xOp}" cy="${yOp}" r="${radioOp}" fill="${colorOp}" stroke="${strokeOp}" stroke-width="${strokeW}" />
           <text x="${xOp}" y="${yOp + 3}" font-size="8" fill="#ffffff" text-anchor="middle">${labelOp}</text>
         `;
       }
@@ -480,7 +484,7 @@
         <line x1="${padLeft}" y1="${height - padBottom}" x2="${width - padRight}" y2="${height - padBottom}" stroke="#64748b" />
         ${yGrid}
         ${breakEvenLine}
-        <path d="${path}" fill="none" stroke="#22c55e" stroke-width="2.5" />
+        <path d="${path}" fill="none" stroke="#3b82f6" stroke-width="1.6" />
         ${circles}
         ${puntosOperaciones}
         ${puntoCompra}
