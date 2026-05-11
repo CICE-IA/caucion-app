@@ -438,7 +438,7 @@
 
       let circles = "";
       let xLabels = "";
-      const precioCompraMarcado = minX;
+      const precioCompraMarcado = base;
       const gananciaCompraMarcada = puntos.find((p) => p.precio === precioCompraMarcado)?.ganancia;
       const labelStep = maxX - minX > 1200 ? 100 : 50;
       for (const p of puntos) {
