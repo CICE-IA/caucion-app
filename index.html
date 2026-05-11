@@ -277,12 +277,13 @@
           <input type="number" id="cantidadGraf" value="10000" placeholder="Ej: 10000">
         </div>
       </div>
-      <div class="muted">El gráfico se calcula en saltos de 10 puntos: base, base+10, base+20, ...</div>
+      <div class="muted">El gráfico se calcula en saltos de 10 puntos: base, base+10, ... hasta base+1000.</div>
       <button onclick="calcularGraficoGanancia()">Generar gráfico</button>
       <div class="result" id="outGraficoGanancia">Ingresá precio base y cantidad para generar el gráfico.</div>
       <div class="table-wrap">
         <svg id="chartGanancia" viewBox="0 0 960 320" style="width:100%;height:auto;background:#0b1220;border:1px solid #243042;border-radius:10px;"></svg>
       </div>
+      <div class="muted" id="tooltipGraficoGanancia">Pasá el mouse sobre la línea del gráfico para ver detalle de cada punto.</div>
     </div>
   </div>
   <script>
@@ -365,11 +366,14 @@
       }
 
       const step = 10;
-      const totalPuntos = 11;
+      const totalPuntos = 101;
+      const derecho = 0.0001;
+      const netoCompraBase = (cantidad * (base / 100)) * (1 + derecho);
       const puntos = [];
       for (let i = 0; i < totalPuntos; i++) {
         const precio = base + (i * step);
-        const ganancia = ((precio - base) / 100) * cantidad;
+        const netoVenta = (cantidad * (precio / 100)) * (1 - derecho);
+        const ganancia = netoVenta - netoCompraBase;
         puntos.push({ precio, ganancia });
       }
 
@@ -377,7 +381,8 @@
         `<b>Base:</b> $ ${fmtMoneyARS(base)}<br>` +
         `<b>Cantidad:</b> ${cantidad.toLocaleString("es-AR")}<br>` +
         `<b>Rango X (precio):</b> $ ${fmtMoneyARS(base)} a $ ${fmtMoneyARS(base + (step * (totalPuntos - 1)))}<br>` +
-        `<b>Rango Y (ganancia):</b> $ ${fmtMoneyARS(puntos[0].ganancia)} a $ ${fmtMoneyARS(puntos[puntos.length - 1].ganancia)}`;
+        `<b>Rango Y (ganancia neta):</b> $ ${fmtMoneyARS(puntos[0].ganancia)} a $ ${fmtMoneyARS(puntos[puntos.length - 1].ganancia)}<br>` +
+        `<b>Derecho aplicado:</b> 0,01% (compra suma, venta resta)`;
 
       renderizarGraficoGanancia(svg, puntos);
     }
@@ -434,6 +439,28 @@
         <text x="${width / 2}" y="${height - 2}" font-size="12" fill="#e5e7eb" text-anchor="middle">X: Precio del bono</text>
         <text x="16" y="${height / 2}" font-size="12" fill="#e5e7eb" text-anchor="middle" transform="rotate(-90 16 ${height / 2})">Y: Ganancia</text>
       `;
+
+      const tooltip = document.getElementById("tooltipGraficoGanancia");
+      svg.onmousemove = (event) => {
+        const rect = svg.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        let mejor = puntos[0];
+        let mejorDist = Infinity;
+        for (const p of puntos) {
+          const px = xToPx(p.precio) * (rect.width / width);
+          const dist = Math.abs(px - mouseX);
+          if (dist < mejorDist) {
+            mejorDist = dist;
+            mejor = p;
+          }
+        }
+        tooltip.innerHTML =
+          `<b>Precio:</b> $ ${fmtMoneyARS(mejor.precio)} | ` +
+          `<b>Ganancia neta:</b> $ ${fmtMoneyARS(mejor.ganancia)}`;
+      };
+      svg.onmouseleave = () => {
+        tooltip.innerHTML = "Pasá el mouse sobre la línea del gráfico para ver detalle de cada punto.";
+      };
     }
     const STORAGE_KEY = "caucion_operaciones_diarias";
     const COL_WIDTHS_KEY = "caucion_table_col_widths";
